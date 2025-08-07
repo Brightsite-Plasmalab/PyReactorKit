@@ -1,6 +1,6 @@
 # PyReactorKit
 
-A Python package for simulating some commonly used chemical reactors.
+A Python package for simulating some commonly used chemical reactors, built on top of [Cantera](https://github.com/Cantera/cantera)
 
 ## Installation
 
