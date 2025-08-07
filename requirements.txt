@@ -1,0 +1,9 @@
+pip
+ipykernel
+numpy 
+scipy
+matplotlib
+cantera
+toddler
+wedme-plots
+lmfit

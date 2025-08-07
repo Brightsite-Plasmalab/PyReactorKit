@@ -1,0 +1,24 @@
+[build-system]
+# A list of packages that are needed to build your package:
+requires = ["setuptools"]  # REQUIRED if [build-system] table is used
+# The name of the Python object that frontends will use to perform the build:
+build-backend = "setuptools.build_meta"  # If not defined, then legacy behavior can happen.
+
+
+[project]
+name = "pyreactorkit"
+version = "0.1.0"
+
+description = "A Python module for maasmodel"
+readme = "README.md"
+requires-python = ">=3.8"
+
+# This field lists other packages that your project depends on to run.
+# Any package you put here will be installed by pip when your project is
+# installed, so they must be valid existing projects.
+#
+# For an analysis of this field vs pip's requirements files see:
+# https://packaging.python.org/discussions/install-requires-vs-requirements/
+dependencies = [
+  "numpy", "pandas", "scipy", "lmfit", "distinctipy", "matplotlib", "cantera", "ipykernel", "wedme-plots", "toddler", "collomech @ https://github.com/Brightsite-Plasmalab/collomech/archive/master.zip"
+]
