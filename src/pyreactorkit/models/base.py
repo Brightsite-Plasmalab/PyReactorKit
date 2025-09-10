@@ -585,7 +585,7 @@ class ConvergingModel:
     def get_iteration_results(self) -> Tuple:
         raise NotImplementedError
 
-    def is_converged(self, Tuple) -> bool:
+    def is_converged(self, i: int, parameters: Tuple, results: Tuple) -> bool:
         raise NotImplementedError
 
     def adjust_for_next_iteration(self, parameters: Tuple, results: Tuple) -> Tuple:
