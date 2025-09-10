@@ -126,6 +126,21 @@ def cos_profile_binned(z, z0, fwhm, y0=1, sum=None):
     return y
 
 
+def rect_profile(z, z0, L, y0=1, sum=None):
+    y = np.zeros_like(z)
+    idx = np.abs(z - z0) < L / 2
+    y[idx] = y0
+
+    if np.sum(y) == 0:
+        idx_core = np.argmin(np.abs(z - z0))
+        y[idx_core] = y0
+
+    if sum is not None:
+        y *= sum / np.sum(y)
+
+    return y
+
+
 def gauss_profile(z, z0, fwhm, y0=1):
     y = y0 * np.exp(-((z - z0) ** 2) / (2 * fwhm**2))
 
