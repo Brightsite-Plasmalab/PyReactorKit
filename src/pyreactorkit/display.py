@@ -244,16 +244,7 @@ def plot_production_rates(
     }
 
 
-def plot_reactions(
-    solarr,
-    rate_threshold_rel=1e-3,
-    xaxis=None,
-    ax=None,
-    species=None,
-    cum=False,
-    dV=None,
-    legend_opts={},
-):
+def get_reactions(solarr, rate_threshold_rel=1e-3, species=None, cum=False, dV=None):
     # Pass multiple parallel SolutionArrays in a list
     if type(solarr) == list or type(solarr) == tuple:
         rates = np.sum(
@@ -262,8 +253,7 @@ def plot_reactions(
         solarr = solarr[0]  # Use the first SolutionArray for x-axis and species names
     else:
         rates = solarr.net_rates_of_progress
-
-    x, xaxis_label = get_x_axis(solarr, xaxis)
+    rates = np.atleast_2d(rates)
 
     if cum:
         rates = np.cumsum(rates, axis=0)
@@ -274,17 +264,8 @@ def plot_reactions(
     rate_threshold = rate_max * rate_threshold_rel
 
     idx_display = np.max(np.abs(rates), axis=0) > rate_threshold
-    idx_color = np.cumsum(idx_display) - 1
-    colors = distinctipy.get_colors(np.sum(idx_display), rng=0)
 
-    if ax is None:
-        plt.figure()
-        ax = plt.gca()
-    ax.set_prop_cycle(color=plt.cm.tab20.colors)
-
-    if type(species) == str:
-        species = [species]
-
+    reactions = {}
     for i, reaction in enumerate(solarr.reaction_equations()):
         reaction_rate = rates[:, i]
 
@@ -292,9 +273,6 @@ def plot_reactions(
             continue
 
         # Filter species
-        # species_i = re.findall(
-        #     r"(?:(?<=^)|(?<=\s|\+))([a-zA-Z]+[a-zA-Z0-9]*)(?=[\s)])", reaction
-        # )
         species_i = re.findall(
             r"(?:(?<=^)|(?<=\s|\+))([a-zA-Z]+[a-zA-Z0-9]*)", reaction
         )
@@ -309,7 +287,69 @@ def plot_reactions(
 
         reaction_label = format_reaction(reaction)
 
-        # Plot forward
+        reactions[reaction_label] = reaction_rate
+
+    # Sort reactions by maximum rate (descending)
+    reactions = dict(
+        sorted(
+            reactions.items(), key=lambda item: np.max(np.abs(item[1])), reverse=True
+        )
+    )
+
+    return reactions
+
+
+def plot_reactions(
+    solarr,
+    rate_threshold_rel=1e-3,
+    xaxis=None,
+    ax=None,
+    species=None,
+    cum=False,
+    dV=None,
+    legend_opts={},
+):
+    """Plot reaction rates using pre-filtered data from get_reactions to avoid code duplication.
+
+    Parameters mirror the original implementation. All thresholding / flipping is handled
+    by get_reactions; this function focuses only on layout & styling.
+    """
+
+    # Keep original behaviour for x-axis source when a list/tuple of SolutionArrays is passed
+    solarr_for_axis = solarr[0] if isinstance(solarr, (list, tuple)) else solarr
+    x, xaxis_label = get_x_axis(solarr_for_axis, xaxis)
+
+    # Retrieve processed reactions (already thresholded & flipped where needed)
+    reactions = get_reactions(
+        solarr,
+        rate_threshold_rel=rate_threshold_rel,
+        species=species,
+        cum=cum,
+        dV=dV,
+    )
+
+    if ax is None:
+        plt.figure()
+        ax = plt.gca()
+    ax.set_prop_cycle(color=plt.cm.tab20.colors)
+
+    if len(reactions) == 0:
+        ax.text(0.5, 0.5, "No reactions above threshold", ha="center", va="center")
+        ax.set_xlabel(xaxis_label)
+        if not cum:
+            ax.set_ylabel("Reaction rates [$kmol/m^3/s$]")
+        else:
+            ax.set_ylabel("Cumulative reaction rates [$kmol/s$]")
+        return
+
+    # Determine global maxima for scaling & threshold line (re-compute locally)
+    rate_max = max(np.max(np.abs(r)) for r in reactions.values())
+    rate_threshold = rate_max * rate_threshold_rel
+
+    colors = distinctipy.get_colors(len(reactions), rng=0)
+
+    for i, (reaction_label, reaction_rate) in enumerate(reactions.items()):
+        # Forward (dominant direction) -> solid line
         reaction_rate_forward = np.copy(reaction_rate)
         reaction_rate_forward[reaction_rate_forward < 0] = np.nan
         line_i = ax.plot(
@@ -317,8 +357,9 @@ def plot_reactions(
             reaction_rate_forward,
             label=None,
             linestyle="-",
-            color=colors[idx_color[i]],
+            color=colors[i],
         )
+        # Add (short) legend handle aligned at threshold value (mimics previous behaviour)
         ax.plot(
             x[:2],
             [rate_threshold, np.nan],
@@ -327,7 +368,7 @@ def plot_reactions(
             color=line_i[0].get_color(),
         )
 
-        # Plot reverse
+        # Reverse (if any negative portions) -> dashed line
         reaction_rate_backward = -np.copy(reaction_rate)
         reaction_rate_backward[reaction_rate_backward < 0] = np.nan
         ax.plot(
